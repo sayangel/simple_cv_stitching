@@ -56,7 +56,7 @@ def open_images(img_array):
 
 #stitch_images will stitch a left/right image by default
 #pass vertical and horizontal parameters as needed to stitch images
-def stitch_images(image1, image2, vertical=False, horizontal=True, transparency = 1.0):
+def stitch_images(image1, image2, vertical=False, horizontal=True, transparency = 1.0, useMask = False):
   #vertical/horizontal dimension multiplier
   v = 1
   h = 1
@@ -70,11 +70,25 @@ def stitch_images(image1, image2, vertical=False, horizontal=True, transparency 
 
   dst = Image((image1.width*h, image1.height*v))
 
-  print "Stitching..."
-
   # Find the keypoints.
   match_features = image1.findKeypointMatch(image2)
+  match_features[0].draw(width=5)
 
+  #create and use mask to properly blit the (typically last) image
+  blitMask = Image(dst.size())
+  if useMask:
+    topLeftX = match_features[0].getMinRect()[0][0]
+    topLeftY = match_features[0].getMinRect()[0][1]
+    width = match_features[0].getMinRect()[3][0]-match_features[0].getMinRect()[0][0]
+    height = match_features[0].getMinRect()[1][1] - match_features[0].getMinRect()[0][1]
+
+    dl = DrawingLayer(dst.size())
+    dl.rectangle((topLeftX, topLeftY), (width, height), filled = True, color=Color.WHITE)
+    blitMask.addDrawingLayer(dl)
+    blitMask = blitMask.applyLayers()
+    blitMask = blitMask.invert()
+    blitMask.save("mask.jpg")
+    # dl.circle((300,300), 80, filled = True, color = Color.WHITE)
   # The homography matrix.
   homo = match_features[0].getHomography()
   #Uncomment if want to prevent perspective shift
@@ -98,12 +112,12 @@ def stitch_images(image1, image2, vertical=False, horizontal=True, transparency 
             cv2.warpPerspective(
                                 np.array((image2.getMatrix()))
                                 , homo
-                                , (dst_mat.rows, dst_mat.cols+300)
+                                , (dst_mat.rows, dst_mat.cols)
                                 , np.array(dst_mat)
                                 , cv2.INTER_CUBIC
                                 )
             , colorSpace=ColorSpace.RGB
-            ).toBGR()
+            )#.toBGR()
 
   # AFFINE ONLY IMPLEMENTATION
   # Doesn't seem to work too well..
@@ -119,7 +133,11 @@ def stitch_images(image1, image2, vertical=False, horizontal=True, transparency 
   #           , colorSpace=ColorSpace.RGB
   #           ).toBGR()
 
-  stitched_image = stitched_image.blit(image1, alpha=transparency)
+  if useMask:
+    stitched_image = stitched_image.blit(image1, mask=blitMask)
+  else:
+    stitched_image = stitched_image.blit(image1)
+
   return stitched_image
 
 
@@ -151,13 +169,14 @@ if not multiple:
   else:
     horizontal = True
 
+  print "Stitching..."
   final = stitch_images(input_img_list[0], input_img_list[1], vertical, horizontal)
   final.save("stitched.jpg")
   print "Image saved as stitched.jpg"
 
 if multiple:
   print "Stitching top left and top right..."
-  #(1) stitch left and right images - horizontal stitch
+  #(1) stitch bottom left and right images - horizontal stitch
   first_stitch = stitch_images(input_img_list[0], input_img_list[1])
 
   print "Stitching top half with bottom left..."
@@ -166,7 +185,6 @@ if multiple:
 
   print "Stitching bottom right to rest of image..."
   #(3) stitch above image with bottom left corner - no vertical no horizontal
-  final = stitch_images(second_stitch, input_img_list[3], False, False, 0.5)
-
+  final = stitch_images(second_stitch, input_img_list[3], False, False, 0.5, True)
   final.save("stitched.jpg")
   print "Image saved as stitched.jpg"

@@ -16,16 +16,12 @@ def open_images(img_array):
 
   if mul_images == "y" or mul_images == "Y" or mul_images == "yes" or mul_images == "Yes":
     img1_path = tkFileDialog.askopenfilename(message="Select Top Left Image")
-    print(img1_path)
 
     img2_path = tkFileDialog.askopenfilename(message="Select Top Right Image")
-    print(img2_path)
 
     img3_path = tkFileDialog.askopenfilename(message="Select Bottom Left Image")
-    print(img3_path)
 
     img4_path = tkFileDialog.askopenfilename(message="Select Bottom Right Image")
-    print(img4_path)
 
     #open image structures from file path
     img1 = Image(img1_path)
@@ -41,10 +37,8 @@ def open_images(img_array):
 
   else:
     img1_path = tkFileDialog.askopenfilename(message="Select Left/Top Image")
-    print(img1_path)
 
     img2_path = tkFileDialog.askopenfilename(message="Select Right/Bottom Image")
-    print(img2_path)
 
     #open image structures from file path
     img1 = Image(img1_path)
@@ -77,8 +71,9 @@ def stitch_images(image1, image2, vertical=False, horizontal=True, transparency 
   #create and use mask to properly blit the (typically last) image
   blitMask = Image(dst.size())
   if useMask:
-    topLeftX = match_features[0].getMinRect()[0][0]
-    topLeftY = match_features[0].getMinRect()[0][1]
+    #may need overlap here to get better stitching results
+    topLeftX = match_features[0].getMinRect()[0][0]+250
+    topLeftY = match_features[0].getMinRect()[0][1]+250
     width = match_features[0].getMinRect()[3][0]-match_features[0].getMinRect()[0][0]
     height = match_features[0].getMinRect()[1][1] - match_features[0].getMinRect()[0][1]
 
@@ -143,7 +138,7 @@ def stitch_images(image1, image2, vertical=False, horizontal=True, transparency 
 
 input_img_list = []
 open_images(input_img_list)
-print len(input_img_list) > 3
+
 if len(input_img_list) > 2:
   multiple = True
 else:

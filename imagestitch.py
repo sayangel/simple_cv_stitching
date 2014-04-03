@@ -77,6 +77,7 @@ def stitch_images(image1, image2, vertical=False, horizontal=True, transparency 
     width = match_features[0].getMinRect()[3][0]-match_features[0].getMinRect()[0][0]
     height = match_features[0].getMinRect()[1][1] - match_features[0].getMinRect()[0][1]
 
+    #create a mask to ensure blit in the proper area
     dl = DrawingLayer(dst.size())
     dl.rectangle((topLeftX, topLeftY), (width, height), filled = True, color=Color.WHITE)
     blitMask.addDrawingLayer(dl)
@@ -134,6 +135,81 @@ def stitch_images(image1, image2, vertical=False, horizontal=True, transparency 
     stitched_image = stitched_image.blit(image1)
 
   return stitched_image
+
+#getKeypointMatch finds the keypointmatches and returns an affine transformation matrix
+def getKeypointMatch(src,template,quality=500.00,minDist=0.2,minMatch=0.4):
+
+        try:
+            import cv2
+        except:
+            warnings.warn("Can't Match Keypoints without OpenCV >= 2.3.0")
+            return
+        if template == None:
+          return None
+
+
+        fs = FeatureSet()
+        skp,sd = src._getRawKeypoints(quality)
+        tkp,td = template._getRawKeypoints(quality)
+        if( skp == None or tkp == None ):
+            warnings.warn("I didn't get any keypoints. Image might be too uniform or blurry." )
+            return None
+
+        template_points = float(td.shape[0])
+        sample_points = float(sd.shape[0])
+        magic_ratio = 1.00
+        if( sample_points > template_points ):
+            magic_ratio = float(sd.shape[0])/float(td.shape[0])
+
+        idx,dist = src._getFLANNMatches(sd,td) # match our keypoint descriptors
+        p = dist[:,0]
+        result = p*magic_ratio < minDist #, = np.where( p*magic_ratio < minDist )
+        pr = result.shape[0]/float(dist.shape[0])
+
+        if( pr > minMatch and len(result)>4 ): # if more than minMatch % matches we go ahead and get the data
+            lhs = []
+            rhs = []
+            for i in range(0,len(idx)):
+                if( result[i] ):
+                    lhs.append((tkp[i].pt[1], tkp[i].pt[0]))
+                    rhs.append((skp[idx[i]].pt[0], skp[idx[i]].pt[1]))
+
+            rhs_pt = np.array(rhs)
+            lhs_pt = np.array(lhs)
+
+            if( len(rhs_pt) < 16 or len(lhs_pt) < 16 ):
+                return None
+
+            #TO-DO: figure out correct format for lhs_pt and rhs_pt
+            affineTransform = cv2.estimateRigidTransform(lhs_pt, rhs_pt, False)
+
+            return affineTransform
+
+            # homography = []
+            # (homography,mask) = cv2.findHomography(lhs_pt,rhs_pt,cv2.RANSAC, ransacReprojThreshold=1.0 )
+            # w = template.width
+            # h = template.height
+            #
+            # pts = np.array([[0,0],[0,h],[w,h],[w,0]], dtype="float32")
+            #
+            # pPts = cv2.perspectiveTransform(np.array([pts]), homography)
+            #
+            # pt0i = (pPts[0][0][1], pPts[0][0][0])
+            # pt1i = (pPts[0][1][1], pPts[0][1][0])
+            # pt2i = (pPts[0][2][1], pPts[0][2][0])
+            # pt3i = (pPts[0][3][1], pPts[0][3][0])
+            #
+            # #construct the feature set and return it.
+            # fs = FeatureSet()
+            # fs.append(KeypointMatch(self,template,(pt0i,pt1i,pt2i,pt3i),homography))
+            # #the homography matrix is necessary for many purposes like image stitching.
+            # #fs.append(homography) # No need to add homography as it is already being
+            # #added in KeyPointMatch class.
+            # #return fs
+        else:
+            return None
+
+
 
 
 input_img_list = []

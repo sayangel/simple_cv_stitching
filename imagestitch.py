@@ -2,17 +2,21 @@ from SimpleCV import *
 import Tkinter, tkFileDialog
 import cv2
 import cv
+import getopt, sys
 
 
 #open images and create simplecv image structures from provided paths
-def open_images(img_array):
+def open_images(img_array, multiple):
 
   root = Tkinter.Tk()
   root.withdraw()
 
   #determine if > 2 images
   #max supported right now is 4
-  mul_images = raw_input("Multiple images? (y/n): ")
+  if multiple:
+    mul_images = "Y"
+  else:
+    mul_images = raw_input("Multiple images? (y/n): ")
 
   if mul_images == "y" or mul_images == "Y" or mul_images == "yes" or mul_images == "Yes":
     img1_path = tkFileDialog.askopenfilename(message="Select Top Left Image")
@@ -209,53 +213,74 @@ def getKeypointMatch(src,template,quality=500.00,minDist=0.2,minMatch=0.4):
         else:
             return None
 
+def main(argv):
+  #vertical and horizontal are bools to determine multipliers for dimensions of the final image
+  #when stitching vertically/horizontally double the height/width
+  #default is horizontal
+  vertical = False
+  horizontal = False
 
-
-
-input_img_list = []
-open_images(input_img_list)
-
-if len(input_img_list) > 2:
-  multiple = True
-else:
+  #whether or not to stitch more than 2 images
+  # default is 2 images
   multiple = False
 
-img1 = input_img_list[0]
-img2 = input_img_list[1]
-if multiple:
-  img3 = input_img_list[2]
-  img4 = input_img_list[3]
+  opts, args = getopt.getopt(argv,"mvh")
+  print opts
+  for opt, arg in opts:
+    print opt
+    if opt == '-m':
+      multiple = True
+    elif opt == "-v":
+      vertical = True
+      multiple = False
+    elif opt == "-h":
+      horizontal = True
+      multiple = False
 
+  input_img_list = []
+  open_images(input_img_list, multiple)
 
-#vertical and horizontal are bools to determine multipliers for dimensions of the final image
-#when stitching vertically/horizontally double the height/width
-vertical = False
-horizontal = False
-
-if not multiple:
-  #figure out orientation of stitching if only 2 images to determine dimensions
-  orientation = raw_input("Vertical (y/n): ")
-  if orientation == "y" or orientation == "Y" or orientation == "yes" or orientation == "Yes":
-    vertical = True
+  if len(input_img_list) > 2:
+    multiple = True
   else:
-    horizontal = True
+    multiple = False
 
-  print "Stitching..."
-  final = stitch_images(input_img_list[0], input_img_list[1], vertical, horizontal)
-  final.save("stitched.jpg")
-  print "Image saved as stitched.jpg"
+  img1 = input_img_list[0]
+  img2 = input_img_list[1]
+  if multiple:
+    img3 = input_img_list[2]
+    img4 = input_img_list[3]
 
-if multiple:
-  print "Stitching top left and top right..."
-  #(1) stitch bottom left and right images - horizontal stitch
-  first_stitch = stitch_images(input_img_list[0], input_img_list[1])
 
-  print "Stitching top half with bottom left..."
-  #(2) stitch above image with bottom left corner - vertical stitch
-  second_stitch = stitch_images(first_stitch, input_img_list[2], True, False)
 
-  print "Stitching bottom right to rest of image..."
-  #(3) stitch above image with bottom left corner - no vertical no horizontal
-  final = stitch_images(second_stitch, input_img_list[3], False, False, 0.5, True)
-  final.save("stitched.jpg")
-  print "Image saved as stitched.jpg"
+  if not multiple:
+    if not horizontal and not vertical:
+      #figure out orientation of stitching if only 2 images to determine dimensions
+      orientation = raw_input("Vertical (y/n): ")
+      if orientation == "y" or orientation == "Y" or orientation == "yes" or orientation == "Yes":
+        vertical = True
+      else:
+        horizontal = True
+
+    print "Stitching..."
+    final = stitch_images(input_img_list[0], input_img_list[1], vertical, horizontal)
+    final.save("stitched.jpg")
+    print "Image saved as stitched.jpg"
+
+  if multiple:
+    print "Stitching top left and top right..."
+    #(1) stitch bottom left and right images - horizontal stitch
+    first_stitch = stitch_images(input_img_list[0], input_img_list[1])
+
+    print "Stitching top half with bottom left..."
+    #(2) stitch above image with bottom left corner - vertical stitch
+    second_stitch = stitch_images(first_stitch, input_img_list[2], True, False)
+
+    print "Stitching bottom right to rest of image..."
+    #(3) stitch above image with bottom left corner - no vertical no horizontal
+    final = stitch_images(second_stitch, input_img_list[3], False, False, 0.5, True)
+    final.save("stitched.jpg")
+    print "Image saved as stitched.jpg"
+
+if __name__ == "__main__":
+   main(sys.argv[1:])

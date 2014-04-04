@@ -225,9 +225,7 @@ def main(argv):
   multiple = False
 
   opts, args = getopt.getopt(argv,"mvh")
-  print opts
   for opt, arg in opts:
-    print opt
     if opt == '-m':
       multiple = True
     elif opt == "-v":
